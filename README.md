@@ -15,14 +15,12 @@ I take no responsibility if this program wrecks your network. I highly advise te
 * `git` - dependency outside of pip
 * `shell`
 * `pexpect`
-* `nose` - for testing
+* `nose` - for running tests
 
 Eventually there will be two ways to install:
 
 ### Via PyPI ###
-I recommend to do this via root. Otherwise if you are 
-in a virtualenv, files will get copied to your virtualenv
-directory:
+I recommend to do this via root. If you utilize a virtualenv, files will get copied to your virtualenv directory:
 
 ```bash
     sudo pip install updog
@@ -36,17 +34,21 @@ First build the installer
     python setup.py sdist
 ```
 
-then you can install with pip (check the dist directory first):
+then you can install with pip:
 
 ```bash
     sudo pip install dist/updog-*.tar.gz
 ```
 
+### Post Install ###
+You'll need to chown the `local/updog` directory with permissions for the
+user you plan to run updog with.
+
 ## Files ##
 Depending on your distribution, whether you install in
 root, and if you are outside of a virtualenv - files should be 
 placed as follows (some of them will be auto-created (like `git`) and
-otheres like `devices.list` and `.credentials` you'll need to make:
+others like `devices.list` and `.credentials` you'll need to make:
 
 ```
 /
@@ -203,7 +205,7 @@ an appropriate $vendor.ini in the vendors folder and extend the tests.
 
 * Configuration compliance checking  
 * Improve output on bark and woof
-* Improve error handling and ability to re-run problematic devices
+* Improve error handling and ability to re-run giproblematic devices
 * Better targeting for pushing commands
 * Add more vendors (juniper and fortigate next)
 * Add more unit tests and re-factor some logic
