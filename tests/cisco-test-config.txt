@@ -1,0 +1,10 @@
+enable secret 5 @Q$isdijosetj0294isfd
+!
+username admin privilege 0 secret 5 34ssjdfkjsfioJ@(
+aaa group server radius mab
+ server 10.10.10.1 auth-port 1814 acct-port 1815 key 23498ejdisio3j240fjsdfnj
+!
+aaa group server radius auth
+ server-private 10.10.10.2 auth-port 1812 acct-port 1813 key 14i3knsefjsu34jwrjnekjnjksdf
+!
+snmp-server community secret RO 2

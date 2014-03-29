@@ -1,0 +1,43 @@
+enable secret 5 @Q$isdijosetj0294isfd
+!
+username admin privilege 0 secret 5 34ssjdfkjsfioJ@(
+aaa group server radius mab
+ server 10.10.10.1 auth-port 1814 acct-port 1815 key 23498ejdisio3j240fjsdfnj
+!
+aaa group server radius auth
+ server-private 10.10.10.2 auth-port 1812 acct-port 1813 key 14i3knsefjsu34jwrjnekjnjksdf
+!
+interface eth 1/1
+    switchport mode access
+    access vlan 10
+    no shutdown
+!
+interface eth 1/3
+    switchport mode access
+    access vlan 10
+    no shutdown
+!
+interface eth 1/3
+    switchport mode access
+    access vlan 10
+    no shutdown
+!
+interface eth 1/4
+    switchport mode access
+    access vlan 10
+    no shutdown
+!
+!
+interface Dialer0 
+ description Dialin Users
+ ip unnumbered Loopback0
+ no ip proxy-arp
+ encapsulation ppp
+ dialer in-band
+ dialer idle-timeout 30
+ dialer-group 1
+ peer default ip address pool new_pool
+ ppp authentication pap chap callin 
+end
+!
+snmp-server community secret RO 2

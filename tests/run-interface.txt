@@ -1,0 +1,4 @@
+interface Gi 1/1
+switchport mode access
+shutdown
+interfce Gi 1/1

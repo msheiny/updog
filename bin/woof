@@ -1,0 +1,168 @@
+#!/usr/bin/env python2
+"""
+Command-line tool to iterate through a network device list, connect to them, 
+run commands, save that output in git and send email alerts.
+"""
+
+import argparse
+import os
+import re
+import sys
+from email.mime.text import MIMEText
+from subprocess import Popen, PIPE
+import shell
+import pexpect
+import ConfigParser
+from updog.netdevice import NetworkDevice
+
+updog_dir = os.path.join(sys.prefix,'local/updog')
+# Parse arguments #############################
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('-debug', action='store_true', help="DEBUG - Display full output")
+parser.add_argument('-gdir', help="Location of Git repository folder",
+        default=os.path.join(updog_dir,'git'))
+parser.add_argument('-vdir', help="Location of Vendor ini files",
+        default=os.path.join(updog_dir,'vendors'))
+parser.add_argument('-list', help="Alternative list of devices.",
+        default=os.path.join(updog_dir,'devices.list'))
+parser.add_argument('-cred', help="Folder location for credentials files",
+        default=updog_dir)
+parser.add_argument('-noemail', action='store_true', 
+        help="Disable email alerting",default=False)
+parser.add_argument('-to', action='append',help="Set email to address", 
+        default=None)
+
+def conf_parse(cp_file, section='Locations'):
+    """ Grab a dictionary of config variables """
+    configparse = ConfigParser.ConfigParser()
+    configparse.read(cp_file)
+    return {k:v for k,v in configparse.items(section)}
+
+def write_and_close(dir, file, content):
+    """ Given a directory, filename, and content - output a file """
+    file_object = open(os.path.join(dir,file),'w')
+    file_object.write(str(content))
+    file_object.close()
+
+def git(gitfolder,command,grab_output=False):
+    """ Logic for checking whether git command has an error code or
+        returned anything on stdout. Optional behavior is to return
+        all standard out.
+    """
+    git_cmd = "git --git-dir={0}/.git --work-tree={0} ".format(
+                                                gitfolder)+command
+    sh = shell.shell(git_cmd)
+    if not grab_output:
+        if ((sh.code != 0 ) or (sh.output())):
+            return False
+        return True
+    else:
+        return '\n'.join(sh.output())
+
+def device_scrape(git_folder, host, vendor, debug, cred_dir, vendordir):
+    """ Run commands against network device and 
+        save output to git folder. Return pxssh object
+    """
+
+    git_host = os.path.join(git_folder,host,vendordir)
+    if not os.path.exists(git_folder):
+        os.makedirs(git_folder)
+    s = NetworkDevice(host, vendor, debug_stdout=debug, cred_dir=cred_dir,
+                        vendordir=vendordir)
+    s.disable_pager()
+    write_and_close(git_folder, "config", 
+                    s.get_config(startup=True))
+    write_and_close(git_folder, "runconfig", 
+                    s.get_config(startup=False))
+    write_and_close(git_folder, "version", s.get_version())
+    write_and_close(git_folder, "hw", s.get_hardware_info())
+    write_and_close(git_folder, "vlan", s.get_vlan())
+
+    return s
+
+
+def git_detect_changes(gitdir):
+    """ Feed in a git directory path. Detect if any changes, record those,
+        process output, and commit changes.
+    """
+
+    git_status = git(gitdir, "status --porcelain", grab_output=True)
+    content = ""
+    
+    if git_status:
+        git_out = ""
+        
+        # Detect new devices
+        regex = re.compile("(?<=\?\? )[\w.-]+(?=/)")
+        new_devices = regex.findall(git_status)
+        if new_devices:
+            content += "\n\nNew devices added:\n\n\t+ "+"\n\t+ ".join(
+                                                new_devices)
+
+        # Detect initial commit
+        if "Initial commit" in git(gitdir, "status", grab_output=True):
+            git(gitdir, "add .")
+            git(gitdir, "commit -a -m 'Initial commit'")
+        else:
+            git_diff = git(gitdir, "diff --stat", grab_output=True)
+            git_diff += git(gitdir, "diff", grab_output=True)
+            "\n".join()
+            git(gitdir, "add .")
+            git(gitdir, "commit -a -m 'Scripted commit'")
+        if git_out: 
+            content += "\n\n\nSwitch config changes detected:\n\n"+ git_out
+
+    return content
+
+
+def main(args):
+    gitdir = args.gdir
+    vendordir = args.vdir
+    problem_devices=[]
+    if not os.path.exists(gitdir):
+        os.makedirs(gitdir)
+    if not git(gitdir,'init',grab_output=True): 
+        raise OSError("Error with git init on %s" % (gitdir))
+    
+    # iterate through 'up' hosts in device listing file
+    #
+    for host, vendor in [(v.split(':')[0],v.split(':')[1])
+            for v in open(args.list,'r').readlines() 
+            if v.split(':')[-1].rstrip() == 'up']:
+        
+        try:
+            githostdir = os.path.join(gitdir,host)
+            device_connection = device_scrape(githostdir, host, vendor, args.debug, cred_dir=args.cred, vendordir = vendordir)
+        except pexpect.EOF:
+            problem_devices.append((host,'Error contacting'))
+            continue
+        except pexpect.TIMEOUT:
+            problem_devices.append((host,'Timeout on cmd (disable pager?)'))
+            continue
+        else:
+            device_connection.disconnect()
+
+    content = ""
+    if problem_devices:
+        content = """Problem with devices:\n\t- {0}""".format(
+                    '\n\t- '.join(
+                        ["{0}: {1}".format(sw,prob) for 
+                            sw, prob in problem_devices])
+                        )
+    
+    # GIT diff and email    
+    content += git_detect_changes(gitdir)
+
+    if content and args.to and not args.noemail:
+        msg = MIMEText(content)
+        msg["From"] = "rancid@noreply"
+        msg["To"] = ','.join(args.to)
+        msg["Subject"] = "Network Device Changes"
+        p = Popen(["/usr/sbin/sendmail", "-t"], stdin=PIPE)
+        p.communicate(msg.as_string())
+    elif content: 
+        print(content)
+
+if __name__ == '__main__': 
+    args = parser.parse_args()
+    main(args)

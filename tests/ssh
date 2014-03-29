@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+                                                                                    
+import getpass
+import os
+import sys
+import ConfigParser
+
+thisdir = os.path.dirname(os.path.realpath(__file__))
+output_dir = os.path.join(thisdir, 'switch_output')
+
+prompts = ConfigParser.RawConfigParser()    
+prompts.read(os.path.join(thisdir,'test-vendors.ini'))
+
+devices = open(os.path.join(thisdir, 'test.list')).readlines()
+
+def ssh_fail():
+        print("ssh: connection to host timed out")
+        sys.exit(255)
+try:
+    host = sys.argv[-1] 
+    vendor = [v.split(':')[1] for v in devices if v.split(':')[0] == host][0] 
+    if 'fail' in host : ssh_fail()
+except IndexError: ssh_fail()
+
+prompt = orig_prompt = prompts.get('Unprivileged', vendor)
+
+while True:
+    pw = getpass.getpass('password: ')
+
+    if pw == 'shakyfish':
+        break
+
+while True:                                                       
+    cmd = raw_input(prompt)
+
+    if prompt == prompts.get('Config', vendor):
+        if cmd == 'interfce Gi 1/1':
+            print "\t\tError ^ "
+
+    if cmd.startswith('show conf'):
+        print open(os.path.join(output_dir,'test-config.txt')).read()
+
+    if cmd.startswith('show vlan'):
+        print open(os.path.join(output_dir,'test-vlan.txt')).read()
+
+    if cmd.startswith('show module'):
+        print open(os.path.join(output_dir,'test-showmodule.txt')).read()
+
+    if cmd.startswith('show run'):
+        print open(os.path.join(output_dir,'test-config.txt')).read()
+
+    if cmd.startswith('enable'):
+        if getpass.getpass('password: ') == "EnABlEm3":
+            prompt = prompts.get('Privileged', vendor)
+
+    if cmd.startswith('conf term'):
+        prompt = prompts.get('Config', vendor)
+
+
+    elif cmd in ('exit', 'logout'):
+        if prompt == prompts.get('Config', vendor):
+            prompt = orig_prompt
+            pass
+        else: break

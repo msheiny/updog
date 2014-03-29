@@ -1,0 +1,103 @@
+#!/usr/bin/env python2
+"""
+Bark - CLI tool to shoot commands to a network device list, jump into
+configuration mode, enter those commands, then save those changes.
+
+"""
+
+import argparse
+import os
+import sys
+import pexpect
+from updog.netdevice import NetworkDevice
+
+updog_dir = os.path.join(sys.prefix,'local/updog')
+# Parse arguments #############################
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('-run', required=True, help="""Run custom command list. Reference to a txt file with one command per line.""")
+parser.add_argument('-debug', action='store_true', help="DEBUG - Display full output")
+parser.add_argument('-cred', help="Folder location for credentials files",
+        default=updog_dir)
+parser.add_argument('-ena', help="Enable password",
+        default=None)
+parser.add_argument('-vdir', help="Location of Vendor ini files",
+        default=os.path.join(updog_dir,'vendors'))
+parser.add_argument('-list', help="List of devices.",
+        default=os.path.join(updog_dir,'devices.list'))
+
+def device_cmd_run(host, vendor, debug, cred_dir, vendordir, cmds, 
+                   enable_pass):
+    """ Run commands against network device and 
+        save output to git folder. Return pxssh object
+    """
+    s = NetworkDevice(host, vendor, debug_stdout=debug, cred_dir=cred_dir,
+                        vendordir=vendordir, enable_pass=enable_pass)
+    s.disable_pager()
+    s.set_config(cmds)
+    return s
+
+
+def main(args):
+    problem_devices = []
+    good_devices = []
+    cmd_issues = []
+    cmd_list = [c.rstrip() for c in open(args.run,'r').readlines()]
+    
+    for host, vendor in [(v.split(':')[0],v.split(':')[1])
+            for v in open(args.list,'r').readlines() 
+            if v.split(':')[-1].rstrip() == 'up']:
+        
+        try:
+            device_connection = device_cmd_run(host, vendor, args.debug, cred_dir=args.cred, vendordir=args.vdir, cmds=cmd_list,
+                                    enable_pass=args.ena)
+        except pexpect.EOF:
+            problem_devices.append((host,'Error contacting'))
+            continue
+        except pexpect.TIMEOUT:
+            problem_devices.append((host,'Timeout on cmd (disable pager?)'))
+            continue
+        else:
+            device_connection.disconnect()
+            good_devices.append(host)
+            for cmd in device_connection.cmderrors: 
+                cmd_issues.append((host,cmd))  
+
+
+    content = ""
+    problem_out = os.path.join('/tmp/problem_devices.list')
+    if problem_devices:
+        content = """Problem with devices:\n\t- {0}""".format(
+                    '\n\t- '.join(
+                        ["{0}: {1}".format(sw,prob) for 
+                            sw, prob in problem_devices]))
+        try:
+            p = open(problem_out,'w')
+            p.write('\n'.join([d[0] for d in problem_devices]))
+            p.close()
+        except IOError:
+            # Flesh this out later
+            pass
+
+    if good_devices:
+        content += """\n\nDevices processed:\n\t+ {0}""".format(
+                    '\n\t+ '.join(
+                        ["{0}".format(device) for device in good_devices]
+                    ))
+    
+    if cmd_issues:
+        content += """\n\nErrors encountered:\n\t~ {0}""".format(
+                    '\n\t~ '.join(
+                        ["{0}, cmd '{1}'".format(device,prob) for device,prob
+                         in cmd_issues]
+                    ))
+    
+    if not (good_devices or problem_devices):
+        print "No devices were processed. Check your device list format"
+
+    print content
+    if problem_devices: 
+        print "Problematic device list written to %s" % (problem_out)
+
+if __name__ == '__main__': 
+    args = parser.parse_args()
+    main(args)

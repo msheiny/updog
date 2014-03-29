@@ -1,0 +1,27 @@
+LAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Fa5/9
+2    VLAN0002                         active    Fa5/9
+3    VLAN0003                         active    Fa5/9
+4    VLAN0004                         active    Fa5/9
+5    VLAN0005                         active    Fa5/9
+6    VLAN0006                         active    Fa5/9
+
+1004 fddinet-default                  active    Fa5/9
+1005 trbrf-default                    active    Fa5/9
+
+VLAN Type  SAID       MTU   Parent RingNo BridgeNo Stp  BrdgMode Trans1 Trans2
+---- ----- ---------- ----- ------ ------ -------- ---- -------- ------ ------
+1    enet  100001     1500  -      -      -        -    -        0      0
+2    enet  100002     1500  -      -      -        -    -        0      0
+3    enet  100003     1500  -      -      -        -    -        303    0
+4    enet  100004     1500  -      -      -        -    -        304    0
+5    enet  100005     1500  -      -      -        -    -        305    0
+6    enet  100006     1500  -      -      -        -    -        0      0
+10   enet  100010     1500  -      -      -        -    -        0      0
+
+Remote SPAN VLANs
+-----------------
+2, 20
+Primary Secondary Type              Ports
+------- --------- ----------------- ------------------------------------------

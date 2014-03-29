@@ -1,0 +1,6 @@
+*pyc
+.credentials
+*devices.list
+dist/
+build/
+MANIFEST
