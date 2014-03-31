@@ -43,12 +43,23 @@ class VendorIniTest(unittest.TestCase):
 
 class WoofFunctionalTest(unittest.TestCase):   
     """ Woof functional run with fake SSH sessions """
+
     @classmethod
     def setUpClass(cls):
         cls.ssh = FakeSSHEnvSetup()
         cls.ssh.setup()
 
-        # determine paths for setting up woof script test
+        cls.out_files = ['config','hw','runconfig','version','vlan']
+        cls.sh, cls.shell_output = cls.woof_run()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.ssh.teardown()
+        shutil.rmtree(cls.git)
+
+    @classmethod
+    def woof_run(cls):
+        # run woof binary and return shell object and output
         root_test = '/tmp/testupdog'
         cls.git = os.path.join(root_test,'git')
         thisdir = os.path.dirname(os.path.realpath(__file__)) 
@@ -57,17 +68,12 @@ class WoofFunctionalTest(unittest.TestCase):
         os.environ['PYTHONPATH'] = os.path.join(thisdir,'../')
         cli = "./bin/woof -cred {c} -vdir {v} -gdir {g} -list {l} -noemail".format(v=vendor, g=cls.git,
                              c=thisdir, l=cls.list_file)
-        cls.sh = shell.shell(cli)
+        sh = shell.shell(cli)
 
         device_list = open(cls.list_file).readlines()
         cls.hosts = [host.split(':')[0] for host in device_list]        
-        cls.out_files = ['config','hw','runconfig','version','vlan']
-        cls.shell_output = '\n'.join(cls.sh.output())
-        
-    @classmethod
-    def tearDownClass(cls):
-        cls.ssh.teardown()
-        shutil.rmtree(cls.git)
+        return sh, '\n'.join(sh.output())
+
 
     def test_simple(cls):
         """ Woof - Make sure the path is working with tests.  """
@@ -81,6 +87,28 @@ class WoofFunctionalTest(unittest.TestCase):
                                h,check_file))
                 if 'fail' in h and not success: cls.assertFalse(file_path)
                 elif not 'fail' in h and success: cls.assertTrue(file_path)
+
+    def test_git_changes(cls):
+        """ Woof - Force changes into git repo and make sure they get flagged """
+        for host in [h for h in cls.hosts if not 'fail' in h]:
+            file = os.path.join(cls.git,host,'config')
+            f = open(os.path.join(cls.git,host,'config'),"a")
+            f.write('Config changes')
+            f.close()
+        git_commit = shell.shell(
+                "git --git-dir={0}/.git --work-tree={0}".format(cls.git)+\
+                " commit -a -m 'Manual test changes'")
+        sh, output = cls.woof_run()
+        for host in [h for h in cls.hosts if not 'fail' in h]:
+            cls.assertRegexpMatches(output,"{0}/config\s+\|\s+\d+\s+-".format(host))
+        cls.assertIn("-Config changes",output)
+        cls.assertEquals(cls.sh.errors(),[])
+
+    def test_git_nochanges(cls):
+        """ Woof - Test scenario with no git changes """
+        sh, output = cls.woof_run()
+        cls.assertEquals(cls.sh.errors(),[])
+        pass
 
     def test_woof_successes(cls):
         """ Woof - Confirm successful config pulls """
