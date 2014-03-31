@@ -104,9 +104,8 @@ def git_detect_changes(gitdir):
             git(gitdir, "add .")
             git(gitdir, "commit -a -m 'Initial commit'")
         else:
-            git_diff = git(gitdir, "diff --stat", grab_output=True)
-            git_diff += git(gitdir, "diff", grab_output=True)
-            "\n".join()
+            git_out = git(gitdir, "diff --stat", grab_output=True)
+            git_out += git(gitdir, "diff", grab_output=True)
             git(gitdir, "add .")
             git(gitdir, "commit -a -m 'Scripted commit'")
         if git_out: 
