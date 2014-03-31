@@ -139,6 +139,11 @@ def main(args):
         except pexpect.TIMEOUT:
             problem_devices.append((host,'Timeout on cmd (disable pager?)'))
             continue
+        except pexpect.ExceptionPexpect as e:
+            if 'password' in str(e):
+                problem_devices.append((host,'Incorrect password'))
+            else: problem_devices.append((host,str(e)))
+            continue
         else:
             device_connection.disconnect()
 
