@@ -2,6 +2,7 @@
     This module holds NetworkDevice class. Provides abstraction to calling switch functions.
 """
 import sys
+import re
 import os
 import ConfigParser
 import pexpect
@@ -76,7 +77,9 @@ class NetworkDevice(object):
             raise pexpect.TIMEOUT(cmd)
         if 'error' in cls.ssh.before.lower():
             cls.cmderrors.append(cmd)
-        if showoutput: return cls.ssh.before
+        if showoutput: 
+            return re.sub(r"^{0}\s+".format(cmd),
+                          "", cls.ssh.before)
 
     def get_config(cls, startup=True):
         """ Pull the config text for running or startup """
