@@ -15,7 +15,8 @@ class NetworkDevice(object):
     """
 
     def __init__(cls, switch, vendor, cred_dir, vendordir, database_link=None, 
-                        connect=True, debug_stdout=False, enable_pass=None):
+                        connect=True, debug_stdout=False, enable_pass=None,
+                        retry_times=5):
         cls.vendor = netvendor.CustomVendorStrings(vendor, vendordir)
         cls.switch = switch
         cls.enpass = enable_pass
@@ -44,7 +45,14 @@ class NetworkDevice(object):
             except ConfigParser.Error:
                 raise ConfigParser.Error("No valid credentials file found at"+\
                         " %s" % cfg_file)
-            cls.connect(user, passwd, debug_stdout)
+                
+            for retry in range(1,retry_times):
+                try:
+                    cls.connect(user, passwd, debug_stdout)
+                    break
+                except pexpect.ExceptionPexpect:
+                    if retry == retry_times: raise
+                    continue
         
     def connect(cls, user, passwd, debug):
         """ Make the pexpect SSH connection """
