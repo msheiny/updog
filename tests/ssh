@@ -4,8 +4,19 @@ import getpass
 import os
 import sys
 import ConfigParser
+import pickle
 
 thisdir = os.path.dirname(os.path.realpath(__file__))
+
+#### pickle file logic
+pk_file = os.path.join(thisdir,'ssh_count.pk')
+try:
+    pk_read_file = open(pk_file,'r')
+    counter = pickle.load(pk_read_file)
+    pk_read_file.close()
+except (EOFError,IOError):
+    counter = 1
+
 output_dir = os.path.join(thisdir, 'switch_output')
 
 prompts = ConfigParser.RawConfigParser()    
@@ -20,6 +31,17 @@ try:
     host = sys.argv[-1] 
     vendor = [v.split(':')[1] for v in devices if v.split(':')[0] == host][0] 
     if 'fail' in host : ssh_fail()
+    ### connection should fail the first four times and then pass
+    if 'test-switch2' in host:
+        if counter <4:
+            counter += 1
+            pk_dump_file = open(pk_file,'w')
+            pickle.dump(counter, pk_dump_file)
+            pk_dump_file.close()
+            ssh_fail()
+        else:
+            os.remove(pk_file)
+        
 except IndexError: ssh_fail()
 
 prompt = orig_prompt = prompts.get('Unprivileged', vendor)

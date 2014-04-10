@@ -1,3 +1,4 @@
 test-switch.domain.com:cisco:up
 test-switch1.domain.com:foundry:up
 failure.domain.com:foundry:up
+test-switch2.domain.com:cisco:up
