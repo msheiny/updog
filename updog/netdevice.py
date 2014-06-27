@@ -105,7 +105,9 @@ class NetworkDevice(object):
 
     def get_vlan(cls):
         """ Pull VLAN port information """
-        return cls._cmd_wrapper(cls.vendor.show_vlan())
+        vlan_data = cls._cmd_wrapper(cls.vendor.show_vlan())
+        return cls.vendor.filter_output(vlan_data, removed_str = '<filtered>',
+                section = 'VLAN')
         
     def get_hardware_info(cls):
         """ Pull hardware information. Typically encloses multiple commands """
