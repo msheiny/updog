@@ -60,10 +60,17 @@ class CustomVendorStrings(object):
         """ Pipe through raw outputtext and use regex patterns in the 
             .ini to yank out text 
         """
-        filters = [regex for tag,regex in cls.vendor_strings.items(section) if tag.startswith('filter')]
-        for regex in filters:
-            r = re.compile(regex)
-            config = r.sub(removed_str, config)
+        tag_start = 'filter'
+        replacement_tag_end = '_replacement'
+        filters = [regex for tag,regex in cls.vendor_strings.items(section) if tag.startswith(tag_start)]
+        filters = {tag: regex for tag,regex in cls.vendor_strings.items(section) if tag.startswith(tag_start) and not tag.endswith(replacement_tag_end)}
+        replacements = {tag: replacement for tag,replacement in cls.vendor_strings.items(section) if tag.startswith(tag_start) and tag.endswith(replacement_tag_end)}
+        for tag in filters.keys():
+            r = re.compile(filters[tag])
+            if replacements.has_key(tag + replacement_tag_end):
+                config = r.sub(replacements[tag + replacement_tag_end], config)
+            else:
+                config = r.sub(removed_str, config)
         return config
 
     def config_term(cls):
