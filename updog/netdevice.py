@@ -46,7 +46,7 @@ class NetworkDevice(object):
                 raise ConfigParser.Error("No valid credentials file found at"+\
                         " %s" % cfg_file)
                 
-            for retry in range(1,retry_times):
+            for retry in range(1,retry_times+1):
                 try:
                     cls.connect(user, passwd, debug_stdout)
                     break
