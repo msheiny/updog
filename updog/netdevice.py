@@ -6,7 +6,7 @@ import re
 import os
 import ConfigParser
 import pexpect
-import pxssh
+from pexpect import pxssh
 import netvendor
 
 class NetworkDevice(object):
